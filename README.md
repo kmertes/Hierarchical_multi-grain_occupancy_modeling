@@ -1,5 +1,4 @@
 # Hierarchical_multi-grain_occupancy_modeling
-multi-grain occupancy model to simultaneously estimate species-environment associations at occupancy and response grains
 
 The characterization of species’ environmental niches and spatial distribution predictions based on them are now central to much of ecology and conservation, but implicitly requires decisions about the appropriate spatial scale (i.e. grain) of analysis. 
 
