@@ -1,0 +1,100 @@
+
+      
+      model{
+      
+      #occupancy state model
+      for (i in 1:sites1km){
+      
+      #occupancy is either 1 or 0 with probability psi
+      z[i] ~ dbern(psi[i])
+      # WinBugs indexes parameters starting at 1 instead of 0 so add one
+      z1[i] <- z[i]+1 
+
+      #Linear model for occupancy
+      logit(psi[i]) <- psiInt + w.elev1km*psielev1km*elev1km[i] + w.lcchet1km*psilcchet1km*lcchet1km[i] + 
+	                            w.NDVI1km*psiNDVI1km*NDVI1km[i] + w.precip1km*psiprecip1km*precip1km[i]
+                             
+      #use state model
+      for (j in 1:sitesxm) {
+      
+      #use is either 1 or 0 with probability theta
+      Theta[i,j] ~ dbern(theta[i,z1[i],j])
+      #WinBugs indexes parameters starting at 1 instead of 0 so add one
+      u1[i,j] <- Theta[i,j]+1
+      #An unoccupied site cannot be used
+      theta[i,1,j] <- 0
+      
+      #Linear model for use
+      logit(theta[i,2,j]) <- uInt + w.dist2waterxm*udist2waterxm*dist2waterxm[i,j] + w.KTWxm*uKTWxm*KTWxm[i,j] + w.predSCIxm*upredSCIxm*predSCIxm[i,j] + 
+	                         w.prop_grassxm*uprop_grassxm*prop_grassxm[i,j] + 
+                             w.shrubpropxm*ushrubpropxm*shrubpropxm[i,j] + w.TAIxm*uTAIxm*TAIxm[i,j]
+      
+      #detection (observation) model 
+      for (k in 1:nsurveys){
+      
+      #detection is either 1 or 0 with probability p
+      h[i,j,k] ~ dbern(p[i,z1[i],u1[i,j],j,k])
+      hnew[i,j,k] ~ dbern(p[i,z1[i],u1[i,j],j,k])  #simulate additional data for Bayesian p-value
+      
+      #Linear model for detection (when site is occupied AND used)
+      logit(p[i,2,2,j,k]) <- pInt + ppropclosedshrubdet*propclosedshrubdet[i,j,k] + pelevdet*elevdet[i,j,k]
+      #Zero probability of detection at an unoccupied & unused site
+      p[i,1,1,j,k] <- 0
+      #Zero probability of detection at a used but unoccupied site (??)
+      p[i,1,2,j,k] <- 0
+      #Zero probability of detection at an occupied but unused site (??)
+      p[i,2,1,j,k] <- 0
+      
+      #For Bayesian p-value
+      d[i,j,k] <- abs(h[i,j,k] - p[i,z1[i],u1[i,j],j,k]) 
+      dnew[i,j,k] <- abs(hnew[i,j,k] - p[i,z1[i],u1[i,j],j,k]) 
+      d2[i,j,k] <- pow(d[i,j,k],2)  
+      dnew2[i,j,k] <- pow(dnew[i,j,k],2) 
+      }
+      
+      dsum[i,j] <- sum(d2[i,j,1:nsurveys]) 
+      dnewsum[i,j] <- sum(dnew2[i,j,1:nsurveys])
+      }
+      }
+      
+      #Calculate the discrepancy measure,
+      p.fit <- sum(dsum[1:sites1km, 1:sitesxm]) 
+      p.fitnew <- sum(dnewsum[1:sites1km, 1:sitesxm])
+      
+      #Priors for model parameters
+      psiInt ~ dnorm(0,0.4)
+      uInt ~ dnorm(0,0.4)
+      pInt ~ dnorm(0,0.4)
+      ppropclosedshrubdet ~ dnorm(0,0.4)
+      pelevdet ~ dnorm(0,0.4)    
+	  psielev1km ~ dnorm(0,tau.model1km)
+      psilcchet1km ~ dnorm(0,tau.model1km)    
+      psiNDVI1km ~ dnorm(0,tau.model1km)
+      psiprecip1km ~ dnorm(0,tau.model1km)
+      udist2waterxm ~ dnorm(0,tau.modelxm)
+      uKTWxm ~ dnorm(0,tau.modelxm)
+      upredSCIxm ~ dnorm(0,tau.modelxm)
+      uprop_grassxm ~ dnorm(0,tau.modelxm)
+      ushrubpropxm ~ dnorm(0,tau.modelxm)
+      uTAIxm ~ dnorm(0,tau.modelxm)
+
+      #priors for indicator variables
+	  w.elev1km ~ dbern(0.5)
+      w.lcchet1km ~ dbern(0.5)	
+      w.NDVI1km ~ dbern(0.5)
+      w.precip1km ~ dbern(0.5) 
+      w.dist2waterxm ~ dbern(0.5)
+      w.KTWxm ~ dbern(0.5)
+      w.predSCIxm ~ dbern(0.5)
+      w.prop_grassxm ~ dbern(0.5)
+      w.shrubpropxm ~ dbern(0.5)
+      w.TAIxm ~ dbern(0.5)
+      tau.total ~ dgamma(3.29, 7.8)
+      K1km <- w.elev1km + w.lcchet1km + w.NDVI1km + w.precip1km
+      tau.model1km <- K1km*tau.total
+      Kxm <- w.dist2waterxm + w.KTWxm + w.predSCIxm + w.prop_grassxm + w.shrubpropxm + w.TAIxm
+      tau.modelxm <- Kxm*tau.total
+
+      } 
+      }
+      
